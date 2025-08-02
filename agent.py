@@ -60,5 +60,5 @@ class QwenCodeAgent:
             "--openai-logging",
         ]
         self.env.execute(" ".join(cmd), cwd="/testbed")
-        output = self.env.execute("git diff")
+        output = self.env.execute("git diff", cwd="/testbed")
         return "Submitted", output["output"]
