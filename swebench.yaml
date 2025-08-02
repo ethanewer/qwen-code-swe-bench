@@ -95,6 +95,7 @@ agent:
   cost_limit: 0.
 
 environment:
+  timeout: 300  
   env:
     PAGER: cat
     MANPAGER: cat

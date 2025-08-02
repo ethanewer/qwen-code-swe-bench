@@ -1,17 +1,7 @@
 {
-  "astropy__astropy-12907": {
-    "model_name_or_path": "gpt-4.1-mini",
-    "instance_id": "astropy__astropy-12907",
-    "model_patch": "The fix is successful. The separability matrix output for nested CompoundModels is now correct and consistent with expectations:\n\n- For cm = m.Linear1D(10) & m.Linear1D(5), the matrix is diagonal.\n- For m.Pix2Sky_TAN() & m.Linear1D(10) & m.Linear1D(5), the separability shows the right independence.\n- For m.Pix2Sky_TAN() & cm (nested compound), the separability matrix is correct and shows independence between the inputs and outputs.\n\nIf you want, I can clean up the backup file created during the edit. Would you like me to do that?"
-  },
   "astropy__astropy-13033": {
     "model_name_or_path": "gpt-4.1-mini",
     "instance_id": "astropy__astropy-13033",
-    "model_patch": "The issue has been fixed. Now, when a required column is removed from a TimeSeries object, the exception raised is clear and informative:\n\n\"TimeSeries object is invalid - missing required columns: ['flux']\"\n\nSummary of the fix:\n- Modified the _check_required_columns method in the BaseTimeSeries class to check for missing columns and raise a clear exception listing all missing required columns.\n- Replaced the previous misleading error message which only compared the first columns.\n\nYou can further test with other scenarios or let me know if you need help with anything else!"
-  },
-  "astropy__astropy-13236": {
-    "model_name_or_path": "gpt-4.1-mini",
-    "instance_id": "astropy__astropy-13236",
-    "model_patch": "I apologize, but it appears I don't have access to the astropy codebase or the environment to search the code for the 'NdarrayMixin' and related Table column code. However, I can guide you on how to implement the proposed changes based on your description.\n\nTo solve the issue of auto-transforming structured arrays into NdarrayMixin in the Table class, you want to:\n\n1. Locate the part of the code where the Table class or function adds a structured numpy array to the Table and auto-converts it into an NdarrayMixin.\n2. Add a FutureWarning to tell the user to explicitly wrap their structured array in a Column.\n3. Remove or comment out the conversion to NdarrayMixin, and in version 5.2 or later change the behavior to add the structured array as a Column instead.\n\nBased on your description, the relevant code snippet looks like this:\n\n```python\nif (not isinstance(data, Column) and not data_is_mixin\n        and isinstance(data, np.ndarray) and len(data.dtype) > 1):\n    data = data.view(NdarrayMixin)\n    data_is_mixin = True\n```\n\nThe solution steps:\n\n- Import warnings module.\n- Before the conversion to NdarrayMixin, add a warnings.warn() with FutureWarning level.\n- Modify the code in the future release to remove this auto-conversion.\n\nExample code snippet modification:\n\n```python\nimport warnings\n\nif (not isinstance(data, Column) and not data_is_mixin\n        and isinstance(data, np.ndarray) and len(data.dtype) > 1):\n    warnings.warn(\"Adding a structured ndarray to a Table should be explicitly wrapped in Column. \"\n                  \"In Astropy 5.2, structured arrays will be added as Column instead of being \"\n                  \"converted to NdarrayMixin.\",\n                  FutureWarning)\n    # data = data.view(NdarrayMixin)\n    # data_is_mixin = True\n```\n\nWould you like me to prepare a patch or a file edit text that you can apply to the codebase? If so, please specify the file path or the exact location."
+    "model_patch": "returncode=0"
   }
 }

@@ -7,6 +7,7 @@ import concurrent.futures
 import json
 import random
 import re
+import subprocess
 import threading
 import time
 import traceback
@@ -16,11 +17,11 @@ import typer
 import yaml
 from datasets import load_dataset
 from minisweagent.config import builtin_config_dir, get_config_path
-from minisweagent.environments.docker import DockerEnvironment
 from minisweagent.run.extra.utils.batch_progress import RunBatchProgressManager
 from rich.live import Live
 
-from agent import OpenaiBashAgent, OpenAIModel
+from agent import OpenAIModel, QwenCodeAgent
+from streaming_docker import StreamingDockerEnvironment
 
 _HELP_TEXT = """Run mini-SWE-agent on SWEBench instances.
 
@@ -45,23 +46,6 @@ DATASET_MAPPING = {
 _OUTPUT_FILE_LOCK = threading.Lock()
 
 
-class ProgressTrackingAgent(OpenaiBashAgent):
-    """Simple wrapper around OpenaiBashAgent that provides progress updates."""
-
-    def __init__(self, *args, progress_manager: RunBatchProgressManager, instance_id: str = "", **kwargs):
-        super().__init__(*args, **kwargs)
-        self.progress_manager: RunBatchProgressManager = progress_manager
-        self.instance_id = instance_id
-
-    def step(self) -> None:
-        """Override step to provide progress updates."""
-        self.progress_manager.update_instance_status(
-            self.instance_id,
-            f"Step {self.model.n_calls + 1}: {self.model.n_prompt_tokens} input tokens, {self.model.n_completion_tokens} output tokens.",
-        )
-        return super().step()
-
-
 def get_swebench_docker_image_name(instance: dict) -> str:
     """Get the image name for a SWEBench instance."""
     image_name = instance.get("image_name", None)
@@ -71,6 +55,42 @@ def get_swebench_docker_image_name(instance: dict) -> str:
         id_docker_compatible = iid.replace("__", "_1776_")
         image_name = f"swebench/sweb.eval.x86_64.{id_docker_compatible}:latest".lower()
     return image_name
+
+
+def ensure_node_image(base: str) -> str:
+    tag = f"{base}-node"
+    if (
+        subprocess.run(["docker", "image", "inspect", tag], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode
+        == 0
+    ):
+        return tag
+
+    try:
+        dockerfile = Path(__file__).with_name("DockerFile.node")
+        context = dockerfile.parent
+        cmd = [
+            "docker",
+            "buildx",
+            "build",
+            "--load",
+            "--platform=linux/amd64",
+            "--progress=plain",
+            "--build-arg",
+            f"BASE_IMG={base}",
+            "-f",
+            str(dockerfile),
+            "-t",
+            tag,
+            str(context),
+        ]
+        print("RUNNING:")
+        print(" ".join(cmd))
+        subprocess.run(cmd, check=True)
+    except subprocess.CalledProcessError as e:
+        print("Docker build failed. Build output:\n", e.stdout or "(no stdout)")
+        raise
+
+    return tag
 
 
 def update_preds_file(output_path: Path, instance_id: str, model_name: str, result: str):
@@ -99,7 +119,7 @@ def remove_from_preds_file(output_path: Path, instance_id: str):
 
 
 def save_traj(
-    agent: OpenaiBashAgent | None,
+    agent: QwenCodeAgent | None,
     path: Path,
     *,
     exit_status: str | None = None,
@@ -122,8 +142,6 @@ def save_traj(
     if agent is not None:
         data["info"]["model_stats"]["instance_cost"] = agent.model.cost
         data["info"]["model_stats"]["api_calls"] = agent.model.n_calls
-        data["info"]["model_stats"]["prompt_tokens"] = agent.model.n_prompt_tokens
-        data["info"]["model_stats"]["completion_tokens"] = agent.model.n_completion_tokens
         data["messages"] = agent.messages
     if extra_info:
         data["info"].update(extra_info)
@@ -145,7 +163,9 @@ def process_instance(
     remove_from_preds_file(output_dir / "preds.json", instance_id)
     (instance_dir / f"{instance_id}.traj.json").unlink(missing_ok=True)
 
-    image_name = get_swebench_docker_image_name(instance)
+    # image_name = get_swebench_docker_image_name(instance)
+    base_image = get_swebench_docker_image_name(instance)
+    image_name = ensure_node_image(base_image)
     config = yaml.safe_load(get_config_path(config_path).read_text())
 
     model = OpenAIModel(**config["model"])
@@ -159,12 +179,12 @@ def process_instance(
     extra_info = None
 
     try:
-        env = DockerEnvironment(**(config.get("environment", {}) | {"image": image_name}))
-        agent = ProgressTrackingAgent(
+        env = StreamingDockerEnvironment(**(config.get("environment", {}) | {"image": image_name}))
+        agent = QwenCodeAgent(
             model=model,
             env=env,
-            progress_manager=progress_manager,
-            instance_id=instance_id,
+            # progress_manager=progress_manager,
+            # instance_id=instance_id,
             **config.get("agent", {}),
         )
         exit_status, result = agent.run(task)

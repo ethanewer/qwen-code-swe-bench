@@ -3,7 +3,7 @@ run:
 		--subset verified \
 		--split test \
 		--workers 16 \
-		--slice 2:3 \
+		--slice 1:2 \
 		--config swebench.yaml \
 		--output output
 clean:
