@@ -49,6 +49,9 @@ class QwenCodeAgent:
             raise ValueError("No API key provided.")
 
     def run(self, task: str) -> tuple[str, str]:
+        self.env.execute("mkdir root/.qwen")
+        self.env.execute('echo \'{ "selectedAuthType": "openai" }\' > /root/.qwen/settings.json')
+
         cmd = [
             f'OPENAI_MODEL="{self.model_name}"',
             f'OPENAI_BASE_URL="{self.base_url}"',
@@ -57,7 +60,6 @@ class QwenCodeAgent:
             "-p",
             shlex.quote(f"Please solve this issue: {task}\n\nAutomatically commit all changes made."),
             "-y",
-            "--openai-logging",
         ]
         self.env.execute(" ".join(cmd), cwd="/testbed")
         output = self.env.execute("git diff", cwd="/testbed")

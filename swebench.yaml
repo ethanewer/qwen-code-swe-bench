@@ -105,3 +105,6 @@ environment:
   
 model:
   model_name: gpt-4.1-mini
+
+agent_dockerfile_path: docker/DockerFile.qwen-code
+force_docker_build: false

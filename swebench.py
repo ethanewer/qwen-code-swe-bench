@@ -23,7 +23,7 @@ from rich.live import Live
 from agent import OpenAIModel, QwenCodeAgent
 from streaming_docker import StreamingDockerEnvironment
 
-_HELP_TEXT = """Run mini-SWE-agent on SWEBench instances.
+HELP_TEXT = """Run mini-SWE-agent on SWEBench instances.
 
 [not dim]
 More information about the usage: [bold green]https://mini-swe-agent.com/latest/usage/swebench/[/bold green]
@@ -43,7 +43,7 @@ DATASET_MAPPING = {
 }
 
 
-_OUTPUT_FILE_LOCK = threading.Lock()
+OUTPUT_FILE_LOCK = threading.Lock()
 
 
 def get_swebench_docker_image_name(instance: dict) -> str:
@@ -57,16 +57,17 @@ def get_swebench_docker_image_name(instance: dict) -> str:
     return image_name
 
 
-def ensure_node_image(base: str) -> str:
-    tag = f"{base}-node"
+def ensure_node_image(base: str, agent_dockerfile_path: str, force_build: bool) -> str:
+    tag = f"{base}-{agent_dockerfile_path.split('.')[-1]}"
     if (
         subprocess.run(["docker", "image", "inspect", tag], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode
         == 0
+        and not force_build
     ):
         return tag
 
     try:
-        dockerfile = Path(__file__).with_name("DockerFile.node")
+        dockerfile = Path(__file__).parent / agent_dockerfile_path
         context = dockerfile.parent
         cmd = [
             "docker",
@@ -95,7 +96,7 @@ def ensure_node_image(base: str) -> str:
 
 def update_preds_file(output_path: Path, instance_id: str, model_name: str, result: str):
     """Update the output JSON file with results from a single instance."""
-    with _OUTPUT_FILE_LOCK:
+    with OUTPUT_FILE_LOCK:
         output_data = {}
         if output_path.exists():
             output_data = json.loads(output_path.read_text())
@@ -111,7 +112,7 @@ def remove_from_preds_file(output_path: Path, instance_id: str):
     """Remove an instance from the predictions file."""
     if not output_path.exists():
         return
-    with _OUTPUT_FILE_LOCK:
+    with OUTPUT_FILE_LOCK:
         output_data = json.loads(output_path.read_text())
         if instance_id in output_data:
             del output_data[instance_id]
@@ -164,9 +165,9 @@ def process_instance(
     (instance_dir / f"{instance_id}.traj.json").unlink(missing_ok=True)
 
     # image_name = get_swebench_docker_image_name(instance)
-    base_image = get_swebench_docker_image_name(instance)
-    image_name = ensure_node_image(base_image)
     config = yaml.safe_load(get_config_path(config_path).read_text())
+    base_image = get_swebench_docker_image_name(instance)
+    image_name = ensure_node_image(base_image, config["agent_dockerfile_path"], config.get("force_docker_build", False))
 
     model = OpenAIModel(**config["model"])
 
@@ -223,7 +224,7 @@ def filter_instances(instances: list[dict], *, filter_spec: str, slice_spec: str
     return instances
 
 
-@app.command(help=_HELP_TEXT)
+@app.command(help=HELP_TEXT)
 def main(
     subset: str = typer.Option("lite", "--subset", help="SWEBench subset to use or path to a dataset"),
     split: str = typer.Option("dev", "--split", help="Dataset split"),
