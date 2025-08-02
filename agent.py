@@ -55,19 +55,10 @@ class QwenCodeAgent:
             f'OPENAI_API_KEY="{self.api_key}"',
             "qwen",
             "-p",
-            shlex.quote(f"Please solve this issue: {task}"),
+            shlex.quote(f"Please solve this issue: {task}\n\nAutomatically commit all changes made."),
             "-y",
             "--openai-logging",
         ]
-        output = self.env.execute(" ".join(cmd), cwd="/testbed")
-        print(output)
-        return output["output"], f"returncode={output['returncode']}"
-
-        # def run_and_print(cmd: str) -> None:
-        #     print(f"<cmd>{cmd}</cmd>\n<output>")
-        #     output = self.env.execute(cmd, cwd="/testbed")
-        #     print(output["output"])
-        #     print(f"</output>\n<returncode>{output['returncode']}</returncode>\n")
-
-        # run_and_print("pwd")
-        # run_and_print("ls")
+        self.env.execute(" ".join(cmd), cwd="/testbed")
+        output = self.env.execute("git diff")
+        return "Submitted", output["output"]

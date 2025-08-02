@@ -13,6 +13,7 @@ import time
 import traceback
 from pathlib import Path
 
+import minisweagent.run.extra.swebench
 import typer
 import yaml
 from datasets import load_dataset
