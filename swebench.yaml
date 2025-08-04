@@ -104,7 +104,7 @@ environment:
     TQDM_DISABLE: '1'
   
 model:
-  model_name: gpt-4.1-mini
+  model_name: qwen/qwen3-coder
 
-agent_dockerfile_path: docker/DockerFile.qwen-code
+agent_dockerfile_path: docker/DockerFile.custom-agent
 force_docker_build: false

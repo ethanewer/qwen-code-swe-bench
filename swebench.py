@@ -78,6 +78,8 @@ def ensure_node_image(base: str, agent_dockerfile_path: str, force_build: bool) 
             "--progress=plain",
             "--build-arg",
             f"BASE_IMG={base}",
+            "--build-arg",
+            f"CACHEBUST={int(time.time())}",
             "-f",
             str(dockerfile),
             "-t",

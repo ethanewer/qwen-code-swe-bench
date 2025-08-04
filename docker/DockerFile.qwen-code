@@ -26,6 +26,7 @@ RUN set -eux; \
 COPY --from=node /usr/local/bin/  /usr/local/bin/
 COPY --from=node /usr/local/lib/  /usr/local/lib/
 
-RUN npm install -g --omit=dev --no-update-notifier --fund=false \
-        @qwen-code/qwen-code@latest \
- && npm cache clean --force && rm -rf /root/.npm
+RUN npm install -g --omit=dev --no-update-notifier --fund=false @qwen-code/qwen-code@latest && npm cache clean --force && rm -rf /root/.npm
+RUN cd .. \
+  && mkdir root/.qwen \
+  && echo '{ "selectedAuthType": "openai" }' > ../root/.qwen/settings.json

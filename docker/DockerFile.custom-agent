@@ -26,9 +26,14 @@ RUN set -eux; \
 COPY --from=node /usr/local/bin/  /usr/local/bin/
 COPY --from=node /usr/local/lib/  /usr/local/lib/
 
+ARG CACHEBUST=1
+RUN cd .. \
+  && git clone https://github.com/ethanewer/qwen-agent.git \
+  && cd qwen-agent \
+  && npm install \
+  && npm install -g . \
+  && npm cache clean --force && rm -rf /root/.npm
 
 RUN cd .. \
-    && git clone https://github.com/ethanewer/qwen-agent.git \
-    && cd qwen-agent \
-    && npm install \
-    && npm install -g . \
+  && mkdir root/.qwen \
+  && echo '{ "selectedAuthType": "openai" }' > ../root/.qwen/settings.json
